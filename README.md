@@ -9,3 +9,6 @@ used to show the neuro network trainning data dynamically, you can run this file
 
 ### neuronetwork
 contain some neuro network framework.
+
+### change log
+2017-8-31 add save data button to datashower
