@@ -2,10 +2,11 @@ import tensorflow as tf
 import pickle
 import math
 
+
 class neuronetwork:
     def __init__(self):
-        self.weights, self.bias = self.__constructNet()
-        self.__optimiter()
+        self.weights, self.bias = self.constructNet()
+        self.optimiter()
         self.sess = self.startNet()
 
     def startNet(self):
@@ -14,27 +15,27 @@ class neuronetwork:
         sess.run(init)
         return sess
 
-    def __constructNet(self):
+    def constructNet(self):
         '''
         抽象函数,构建网络
         :return: 网络中的参数和偏置字典。
         '''
         raise NotImplementedError()
 
-    def __optimiter(self):
+    def optimiter(self):
         """
         优化器
         :return:
         """
         raise NotImplementedError()
 
-    def __initWB(self, shape, stddev, value=0.1):
+    def initWB(self, shape, stddev, value=0):
         """
         参数和偏置初始化方法
         :return: 初始化后的参数和偏置
         """
         weight = tf.Variable(tf.truncated_normal(shape, stddev=stddev, dtype=tf.float32), dtype=tf.float32)
-        bias = tf.Variable(tf.constant(value,dtype=tf.float32, shape=shape[1],), dtype=tf.float32)
+        bias = tf.Variable(tf.constant(value,dtype=tf.float32, shape=[shape[-1]]), dtype=tf.float32)
         return weight, bias
 
     def queryWB(self):
@@ -98,18 +99,36 @@ class neuronetwork:
         raise NotImplementedError
 
 class TNN(neuronetwork):
-    def createTNNLayer(self, shape, layerin):
-        weight, bias = self.__initWB(shape, math.sqrt(2 / (shape[0] + shape[1])))
-        layer = tf.nn.relu(tf.matmul(weight, layerin) + bias)
+    def __init__(self):
+        neuronetwork.__init__(self)
+
+    def createTNNLayer(self, shape, layerin,sddev=None,value=None,):
+        if sddev==None:
+            sddev=math.sqrt(2 / (shape[0] + shape[1]))
+        if value==None:
+            value=0
+        weight, bias = self.initWB(shape, sddev, value)
+        layer = tf.nn.relu(tf.matmul(layerin, weight) + bias)
         return layer, weight, bias
 
-class CNN(neuronetwork):
-    def createCNNLayer(self, layerin, layerinshape, coreshape, corenum,strides=[1,1,1,1],padding="SAME"):
-        weight, bias = self.__initWB(coreshape + [layerinshape[2], corenum],
-                                     math.sqrt(2 / ((coreshape[0] + coreshape[1]) * layerinshape[2])))
-        conv1=tf.nn.relu(tf.nn.conv2d(layerin,weight,strides=strides,padding="SAME")+bias)
-        return conv1,weight,bias,layerinshape[:-1]+[coreshape]
+    def createSMLayer(self,shape,layerin):
+        weight, bias = self.initWB(shape, math.sqrt(2 / (shape[0] + shape[1])))
+        layer=tf.nn.softmax(tf.matmul(layerin,weight)+bias)
+        return layer,weight,bias
 
-    def createMaxPool(self,layerin,layerinshape,ksize=[1,3,3,1],strides=[1,2,2,1],padding='SAME'):
+class CNN(TNN):
+    def __init__(self):
+        TNN.__init__(self)
+
+    def createCNNLayer(self, layerin, layerinshape, coreshape, corenum,sddev=None,value=None,strides=[1,1,1,1],padding="SAME"):
+        if sddev==None:
+            sddev=math.sqrt(2 / ((coreshape[0] * coreshape[1]) * corenum))
+        if value==None:
+            value=0
+        weight, bias = self.initWB(coreshape + [layerinshape[2], corenum],sddev,value)
+        conv1=tf.nn.relu(tf.nn.conv2d(layerin,weight,strides=strides,padding=padding)+bias)
+        return conv1, weight, bias, [item.value for item in conv1.shape.dims][1:]
+
+    def createMaxPool(self,layerin,layerinshape,ksize=[1,2,2,1],strides=[1,2,2,1],padding='SAME'):
         pool=tf.nn.max_pool(layerin,ksize,strides,padding)
-        return pool,[int(layerinshape[0]/strides[1]),int(layerinshape[1]/strides[2])]+layerinshape[2:]
+        return pool, [item.value for item in pool.shape.dims][1:]

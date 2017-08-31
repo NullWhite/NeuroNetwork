@@ -12,6 +12,7 @@ if sys.platform=='win32':
 import time
 import os
 from tkinter.messagebox import *
+from tkinter.filedialog import *
 controldatalen=-1
 
 def recvPipeData(pipe):
@@ -71,11 +72,33 @@ class LineShower(Frame):
             showInfo("wrongData:UnpicklingError")
 
     def __initView(self):
+        controlrow=Frame(self)
+        controlrow.config(background='#ffffff')
+        controlrow.pack(side=TOP,fill=X)
+        savebt=Button(controlrow,text="保存数据")
+        savebt.pack()
+        savebt.config(command=self.saveData)
         figure = Figure(figsize=(7, 5), dpi=96)
         self.plot = figure.add_subplot(111)
         self.setViewInfo()
         self.canvas = FigureCanvasTkAgg(figure, self)
         self.canvas.get_tk_widget().pack(anchor=E, expand=YES, fill=BOTH)
+
+    def saveData(self):
+        existdata=False
+        for item in self.data:
+            if item:
+                existdata=True
+        if not existdata:
+            if not askyesno("信息","无数据，是否继续？"):
+                return
+        file=asksaveasfile(defaultextension='.csv',filetypes=[('CSV(逗号分隔)','*.csv'),('文本','*.txt')])
+        if file:
+            file.write('"linelabel","linenum",%s,%s\n'%(self.xlabel,self.ylabel))
+            for i,item in enumerate(self.data):
+                for d in item:
+                    file.write('%s,%s,%s,%s\n'%(self.linelabellist[i],i+1,d[0],d[1]))
+            file.close()
 
     def setViewInfo(self):
         if self.title:
